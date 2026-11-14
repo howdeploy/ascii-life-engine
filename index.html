@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASCII Life — demo</title>
+<style>
+  :root {
+    --bg: #06070a; --panel: rgba(16, 18, 24, 0.86); --line: rgba(255, 255, 255, 0.09);
+    --text: #e8eaf0; --dim: #8a90a0; --accent: #5b8cff;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: #000; color: var(--text); overflow: hidden;
+    font: 13px/1.4 -apple-system, "Segoe UI", Inter, Roboto, "Noto Sans", sans-serif; }
+  #stage { position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform-origin: 0 0; background: var(--bg); }
+  .ui { transition: opacity .25s; }
+  body.hide .ui { opacity: 0; pointer-events: none; }
+
+  #tabs { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px;
+    padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+    max-width: calc(100vw - 32px); overflow-x: auto; }
+  #tabs button { display: flex; align-items: center; gap: 8px; padding: 7px 14px; border: 0; border-radius: 999px;
+    background: transparent; color: var(--dim); font: inherit; cursor: pointer; white-space: nowrap; }
+  #tabs button:hover { color: var(--text); }
+  #tabs button.on { background: rgba(255, 255, 255, 0.1); color: var(--text); }
+  #tabs i { width: 8px; height: 8px; border-radius: 50%; }
+
+  #panel { position: absolute; top: 16px; right: 16px; width: 264px; max-height: calc(100vh - 32px); overflow-y: auto;
+    padding: 12px 14px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+  #panel header { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 8px; }
+  #panel h1 { flex: 1; margin: 0; font-size: 13px; font-weight: 600; }
+  .btn { padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, 0.05);
+    color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
+  .btn:hover { background: rgba(255, 255, 255, 0.12); }
+  .group { margin: 12px 0 4px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+  .row { margin-top: 7px; }
+  .row label { display: flex; justify-content: space-between; color: var(--dim); }
+  .row output { color: var(--text); font-variant-numeric: tabular-nums; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+  input[type=range] { width: 100%; height: 16px; margin: 2px 0 0; accent-color: var(--accent); cursor: pointer; }
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--dim); cursor: pointer; }
+  .check input { accent-color: var(--accent); }
+  select { width: 100%; margin-top: 4px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px;
+    background: #14161c; color: var(--text); font: inherit; }
+  #pals { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  #pals button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+  #pals button.on { border-color: #fff; }
+
+  #status { position: absolute; left: 16px; bottom: 14px; color: var(--dim);
+    font: 12px ui-monospace, Menlo, Consolas, monospace; }
+  #status b { color: var(--text); font-weight: 500; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+
+<nav id="tabs" class="ui"></nav>
+
+<aside id="panel" class="ui">
+  <header>
+    <h1>Tweaks</h1>
+    <button class="btn" id="lang" title="Language / Язык"></button>
+    <button class="btn" id="copy" data-t="copy"></button>
+    <button class="btn" id="reset" data-t="reset"></button>
+  </header>
+  <div class="group" data-t="gPalette"></div>
+  <div id="pals"></div>
+  <div class="group" data-t="gScene"></div>
+  <div id="sliders"></div>
+  <div class="group" data-t="gPointer"></div>
+  <select id="pointer">
+    <option value="flee" data-t="pFlee"></option>
+    <option value="attract" data-t="pAttract"></option>
+    <option value="none" data-t="pNone"></option>
+  </select>
+  <label class="check"><input type="checkbox" id="glow"> <span data-t="glow"></span></label>
+  <div class="row"><label data-t="click"></label></div>
+  <select id="tapAction"></select>
+  <label class="check"><input type="checkbox" id="fx"> <span data-t="fx"></span></label>
+  <div class="row"><label data-t="waterMood"></label></div>
+  <select id="waterMood">
+    <option value="leaves" data-t="mLeaves"></option>
+    <option value="clouds" data-t="mClouds"></option>
+    <option value="sun" data-t="mSun"></option>
+    <option value="moon" data-t="mMoon"></option>
+  </select>
+  <div class="group" data-t="gScreen"></div>
+  <label class="check"><input type="checkbox" id="grid"> <span data-t="grid"></span></label>
+  <label class="check"><input type="checkbox" id="tv"> <span data-t="tv"></span></label>
+</aside>
+
+<div id="status" class="ui"></div>
+
+<script src="ascii-life.js"></script>
+<script>
+(function () {
+  /* тексты интерфейса на двух языках; ключи слайдеров совпадают с именами опций движка */
+  var TEXT = {
+    ru: {
+      copy: 'Копировать', copied: 'Скопировано', reset: 'Сброс',
+      gPalette: 'Палитра', gScene: 'Сцена', gPointer: 'Курсор', gScreen: 'Экран',
+      gDepth: 'Глубина', gLight: 'Свет и след', gCells: 'Клетки',
+      butterfly: 'Бабочки', koi: 'Карпы кои', jellyfish: 'Медузы', dragonfly: 'Стрекозы', frog: 'Лягушки',
+      count: 'Количество', size: 'Размер', speed: 'Скорость', cols: 'Плотность сетки',
+      separation: 'Дистанция между соседями', farDepth: 'Дальняя глубина', farBias: 'Смещение вдаль',
+      fog: 'Дальние тают в фон', waterLight: 'Свет воды', trail: 'След: волны и дымка',
+      bloom: 'Блум', blur: 'Размытие', tileGlyphs: 'Символы в плитках', glyphTone: 'Контраст символов', fps: 'FPS',
+      pFlee: 'Разбегаются', pAttract: 'Тянутся к курсору', pNone: 'Не реагируют',
+      glow: 'Свет вокруг курсора', click: 'Клик', fx: 'Световой слой: вода и дымка', waterMood: 'Свет на воде',
+      mLeaves: 'Листва над водоёмом', mClouds: 'Облака плывут по небу', mSun: 'Солнечный день', mMoon: 'Лунный свет',
+      grid: 'Линии сетки', tv: 'ТВ-превью: 1920×1080, 24 fps, без курсора',
+      food: 'Бросить корм', scare: 'Спугнуть', shock: 'Ударная волна', splash: 'Только всплеск', none: 'Ничего',
+      sCells: 'клеток', sActive: 'активных',
+      sHint: 'клик — действие · ← → сцена · ↑ ↓ палитра · H скрыть панели'
+    },
+    en: {
+      copy: 'Copy', copied: 'Copied', reset: 'Reset',
+      gPalette: 'Palette', gScene: 'Scene', gPointer: 'Pointer', gScreen: 'Screen',
+      gDepth: 'Depth', gLight: 'Light and trail', gCells: 'Cells',
+      butterfly: 'Butterflies', koi: 'Koi', jellyfish: 'Jellyfish', dragonfly: 'Dragonflies', frog: 'Frogs',
+      count: 'Count', size: 'Size', speed: 'Speed', cols: 'Grid density',
+      separation: 'Neighbour separation', farDepth: 'Farthest depth', farBias: 'Far bias',
+      fog: 'Distance fade', waterLight: 'Water light', trail: 'Trail: waves and haze',
+      bloom: 'Bloom', blur: 'Blur', tileGlyphs: 'Glyphs in tiles', glyphTone: 'Glyph contrast', fps: 'FPS',
+      pFlee: 'Flee', pAttract: 'Follow the pointer', pNone: 'Ignore',
+      glow: 'Light around the pointer', click: 'Click', fx: 'Light layer: water and haze', waterMood: 'Light on water',
+      mLeaves: 'Leaves over the pond', mClouds: 'Drifting clouds', mSun: 'Sunny day', mMoon: 'Moonlight',
+      grid: 'Grid lines', tv: 'TV preview: 1920×1080, 24 fps, no pointer',
+      food: 'Drop food', scare: 'Scare', shock: 'Shock wave', splash: 'Splash only', none: 'Nothing',
+      sCells: 'cells', sActive: 'active',
+      sHint: 'click — action · ← → scene · ↑ ↓ palette · H hide panels'
+    }
+  };
+  var lang = 'en';
+  try { lang = localStorage.getItem('ascii-life-lang') || ''; } catch (err) { lang = ''; }
+  if (!TEXT[lang]) lang = /^ru/i.test(navigator.language || '') ? 'ru' : 'en';
+  function t(key) { return TEXT[lang][key] || key; }
+
+  var ORDER = ['butterfly', 'koi', 'jellyfish', 'dragonfly', 'frog'];
+  // строка = заголовок группы (ключ текста), массив = [опция движка, min, max, шаг]
+  var SLIDERS = [
+    ['count', 1, 40, 1],
+    ['size', 0.5, 2, 0.05],
+    ['speed', 0.2, 2.5, 0.05],
+    ['cols', 80, 260, 2],
+    ['separation', 0, 2, 0.05],
+    'gDepth',
+    ['farDepth', 0.15, 1, 0.01],
+    ['farBias', 0.5, 3, 0.05],
+    ['fog', 0, 1, 0.01],
+    'gLight',
+    ['waterLight', 0, 2, 0.05],
+    ['trail', 0, 1, 0.01],
+    ['bloom', 0, 1.5, 0.05],
+    ['blur', 0, 1, 0.05],
+    'gCells',
+    ['tileGlyphs', 0, 1, 0.05],
+    ['glyphTone', 0, 1, 0.05],
+    ['fps', 10, 60, 1]
+  ];
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $('stage');
+  var life = new AsciiLife(stage, {});
+  var scenes = AsciiLife.scenes, DEF = AsciiLife.DEFAULTS;
+  var inputs = {}, saved = null;
+
+  /* вкладки сцен */
+  ORDER.forEach(function (key) {
+    var b = document.createElement('button');
+    b.innerHTML = '<i style="background:' + scenes[key].dot + '"></i><span data-t="' + key + '"></span>';
+    b.onclick = function () { setScene(key); };
+    b.setAttribute('data-k', key);
+    $('tabs').appendChild(b);
+  });
+
+  /* ползунки */
+  SLIDERS.forEach(function (s) {
+    if (typeof s === 'string') {
+      var head = document.createElement('div');
+      head.className = 'group';
+      head.setAttribute('data-t', s);
+      $('sliders').appendChild(head);
+      return;
+    }
+    var row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = '<label><span data-t="' + s[0] + '"></span><output></output></label>' +
+      '<input type="range" min="' + s[1] + '" max="' + s[2] + '" step="' + s[3] + '">';
+    var inp = row.querySelector('input'), out = row.querySelector('output');
+    inp.oninput = function () {
+      var patch = {};
+      patch[s[0]] = parseFloat(inp.value);
+      life.set(patch);
+      out.textContent = fmt(patch[s[0]], s[3]);
+    };
+    inputs[s[0]] = { inp: inp, out: out, step: s[3] };
+    $('sliders').appendChild(row);
+  });
+
+  function fmt(v, step) { return step >= 1 ? String(v) : v.toFixed(2); }
+
+  function value(key) {
+    var v = life.o[key];
+    return (key === 'count' && (v === null || v === undefined)) ? life.scene.count : v;
+  }
+
+  /* подставить тексты текущего языка во все элементы с data-t */
+  function applyLang() {
+    var els = document.querySelectorAll('[data-t]'), i;
+    for (i = 0; i < els.length; i++) els[i].textContent = t(els[i].getAttribute('data-t'));
+    document.documentElement.lang = lang;
+    $('lang').textContent = lang === 'ru' ? 'EN' : 'RU';
+  }
+
+  function sync() {
+    var k, btns = $('tabs').children, i, pal, b;
+    for (k in inputs) {
+      inputs[k].inp.value = value(k);
+      inputs[k].out.textContent = fmt(value(k), inputs[k].step);
+    }
+    for (i = 0; i < btns.length; i++) {
+      btns[i].className = btns[i].getAttribute('data-k') === life.o.scene ? 'on' : '';
+    }
+    $('pals').innerHTML = '';
+    for (k in life.scene.palettes) {
+      pal = life.scene.palettes[k];
+      b = document.createElement('button');
+      b.title = k;
+      b.style.background = pal.a || pal.p1;
+      b.className = k === life.palName ? 'on' : '';
+      b.onclick = (function (name) {
+        return function () { life.set({ palette: name }); sync(); };
+      })(k);
+      $('pals').appendChild(b);
+    }
+    $('pointer').value = life.o.pointer;
+    $('glow').checked = life.o.glow;
+    // действия клика: свои у сцены плюс общие «всплеск» и «ничего»
+    var acts = Object.keys(life.scene.taps).concat(['splash', 'none']);
+    $('tapAction').innerHTML = acts.map(function (a) {
+      return '<option value="' + a + '">' + t(a) + '</option>';
+    }).join('');
+    $('tapAction').value = life.o.tapAction || life.scene.tapDefault;
+    $('fx').checked = life.o.fx;
+    $('waterMood').disabled = !life.scene.water;
+    if (life.scene.water) $('waterMood').value = life.o.waterMood || life.scene.water.mood;
+    $('grid').checked = life.o.grid;
+  }
+
+  function setScene(key) {
+    life.set({ scene: key, palette: null, count: null, tapAction: null, waterMood: null });
+    sync();
+  }
+
+  function stepScene(dir) {
+    var i = ORDER.indexOf(life.o.scene);
+    setScene(ORDER[(i + dir + ORDER.length) % ORDER.length]);
+  }
+
+  function stepPalette(dir) {
+    var names = Object.keys(life.scene.palettes), i = names.indexOf(life.palName);
+    life.set({ palette: names[(i + dir + names.length) % names.length] });
+    sync();
+  }
+
+  $('lang').onclick = function () {
+    lang = lang === 'ru' ? 'en' : 'ru';
+    try { localStorage.setItem('ascii-life-lang', lang); } catch (err) { /* без хранилища язык просто не запомнится */ }
+    applyLang();
+    sync();
+  };
+  $('pointer').onchange = function () { life.set({ pointer: this.value }); };
+  $('glow').onchange = function () { life.set({ glow: this.checked }); };
+  $('tapAction').onchange = function () { life.set({ tapAction: this.value }); };
+  $('fx').onchange = function () { life.set({ fx: this.checked }); };
+  $('waterMood').onchange = function () { life.set({ waterMood: this.value }); };
+  $('grid').onchange = function () { life.set({ grid: this.checked }); };
+
+  /* ТВ-превью: сцена фиксируется в 1920×1080 и вписывается в окно */
+  function fitTv() {
+    if (!$('tv').checked) return;
+    var k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    stage.style.transform = 'scale(' + k + ')';
+    stage.style.left = Math.round((window.innerWidth - 1920 * k) / 2) + 'px';
+    stage.style.top = Math.round((window.innerHeight - 1080 * k) / 2) + 'px';
+  }
+  $('tv').onchange = function () {
+    if (this.checked) {
+      saved = { fps: life.o.fps, maxDpr: life.o.maxDpr, pointer: life.o.pointer, glow: life.o.glow, waterScale: life.o.waterScale };
+      stage.style.width = '1920px';
+      stage.style.height = '1080px';
+      fitTv();
+      life.set({ fps: 24, maxDpr: 1, pointer: 'none', glow: false, waterScale: 0.5 });
+    } else {
+      stage.style.cssText = '';
+      life.set(saved);
+    }
+    life.resize();
+    sync();
+  };
+  window.addEventListener('resize', fitTv, false);
+
+  $('reset').onclick = function () {
+    var patch = {}, k;
+    for (k in DEF) if (k !== 'scene' && k !== 'maxDpr' && k !== 'waterScale') patch[k] = DEF[k];
+    if ($('tv').checked) { patch.fps = 24; patch.pointer = 'none'; patch.glow = false; }
+    life.set(patch);
+    sync();
+  };
+
+  $('copy').onclick = function () {
+    var out = {}, k, btn = this, ta;
+    for (k in DEF) out[k] = life.o[k];
+    out.palette = life.palName;
+    out.count = value('count');
+    var text = JSON.stringify(out, null, 2);
+    function done() {
+      btn.textContent = t('copied');
+      setTimeout(function () { btn.textContent = t('copy'); }, 1200);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else fallback();
+    function fallback() {
+      ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      done();
+    }
+  };
+
+  /* клавиши: стрелки — как кнопки пульта */
+  window.addEventListener('keydown', function (ev) {
+    if (ev.target && /INPUT|SELECT|TEXTAREA/.test(ev.target.tagName)) return;
+    if (ev.keyCode === 37) stepScene(-1);
+    else if (ev.keyCode === 39) stepScene(1);
+    else if (ev.keyCode === 38) stepPalette(-1);
+    else if (ev.keyCode === 40) stepPalette(1);
+    else if (ev.keyCode === 72) document.body.classList.toggle('hide');
+    else return;
+    ev.preventDefault();
+  }, false);
+
+  setInterval(function () {
+    $('status').innerHTML = '<b>' + life.cols + '×' + life.rows + '</b> ' + t('sCells') + ' · <b>' +
+      Math.round(life.stats.fps) + '</b> fps · <b>' + life.stats.cells + '</b> ' + t('sActive') + ' · ' + t('sHint');
+  }, 500);
+
+  applyLang();
+  sync();
+  life.start();
+  window.life = life;
+})();
+</script>
+</body>
+</html>
