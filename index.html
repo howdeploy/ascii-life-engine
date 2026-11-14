@@ -107,7 +107,7 @@
       pFlee: 'Разбегаются', pAttract: 'Тянутся к курсору', pNone: 'Не реагируют',
       glow: 'Свет вокруг курсора', click: 'Клик', fx: 'Световой слой: вода и дымка', waterMood: 'Свет на воде',
       mLeaves: 'Листва над водоёмом', mClouds: 'Облака плывут по небу', mSun: 'Солнечный день', mMoon: 'Лунный свет',
-      grid: 'Линии сетки', tv: 'ТВ-превью: 1920×1080, 24 fps, без курсора',
+      grid: 'Линии сетки', tv: 'ТВ-превью: кадр 1920×1080, без курсора',
       food: 'Бросить корм', scare: 'Спугнуть', shock: 'Ударная волна', splash: 'Только всплеск', none: 'Ничего',
       sCells: 'клеток', sActive: 'активных',
       sHint: 'клик — действие · ← → сцена · ↑ ↓ палитра · H скрыть панели'
@@ -124,7 +124,7 @@
       pFlee: 'Flee', pAttract: 'Follow the pointer', pNone: 'Ignore',
       glow: 'Light around the pointer', click: 'Click', fx: 'Light layer: water and haze', waterMood: 'Light on water',
       mLeaves: 'Leaves over the pond', mClouds: 'Drifting clouds', mSun: 'Sunny day', mMoon: 'Moonlight',
-      grid: 'Grid lines', tv: 'TV preview: 1920×1080, 24 fps, no pointer',
+      grid: 'Grid lines', tv: 'TV preview: 1920×1080 frame, no pointer',
       food: 'Drop food', scare: 'Scare', shock: 'Shock wave', splash: 'Splash only', none: 'Nothing',
       sCells: 'cells', sActive: 'active',
       sHint: 'click — action · ← → scene · ↑ ↓ palette · H hide panels'
@@ -275,7 +275,7 @@
   $('waterMood').onchange = function () { life.set({ waterMood: this.value }); };
   $('grid').onchange = function () { life.set({ grid: this.checked }); };
 
-  /* ТВ-превью: сцена фиксируется в 1920×1080 и вписывается в окно */
+  /* ТВ-превью: сцена фиксируется в 1920×1080 и вписывается в окно; частоту кадров не трогает */
   function fitTv() {
     if (!$('tv').checked) return;
     var k = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -285,11 +285,11 @@
   }
   $('tv').onchange = function () {
     if (this.checked) {
-      saved = { fps: life.o.fps, maxDpr: life.o.maxDpr, pointer: life.o.pointer, glow: life.o.glow, waterScale: life.o.waterScale };
+      saved = { maxDpr: life.o.maxDpr, pointer: life.o.pointer, glow: life.o.glow, waterScale: life.o.waterScale };
       stage.style.width = '1920px';
       stage.style.height = '1080px';
       fitTv();
-      life.set({ fps: 24, maxDpr: 1, pointer: 'none', glow: false, waterScale: 0.5 });
+      life.set({ maxDpr: 1, pointer: 'none', glow: false, waterScale: 0.5 });
     } else {
       stage.style.cssText = '';
       life.set(saved);
@@ -302,7 +302,7 @@
   $('reset').onclick = function () {
     var patch = {}, k;
     for (k in DEF) if (k !== 'scene' && k !== 'maxDpr' && k !== 'waterScale') patch[k] = DEF[k];
-    if ($('tv').checked) { patch.fps = 24; patch.pointer = 'none'; patch.glow = false; }
+    if ($('tv').checked) { patch.pointer = 'none'; patch.glow = false; }
     life.set(patch);
     sync();
   };
