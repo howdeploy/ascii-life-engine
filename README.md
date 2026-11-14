@@ -1,6 +1,6 @@
-# ASCII Life Engine
+![Frogs leaping between lily pads, koi swimming in a pond and butterflies flying, all drawn as ASCII tiles](docs/banner.webp)
 
-![Butterflies drawn as ASCII tiles, flying in a loop](docs/banner.gif)
+# ASCII Life Engine
 
 Living creatures drawn in ASCII: butterflies that flap and glide, koi that bend around a turn and
 come to food, jellyfish, dragonflies, frogs leaping between lily pads. One JavaScript file, no
